@@ -1,0 +1,75 @@
+---
+- hosts: all
+  become: true
+  pre_tasks:
+
+  - name: Update repository index for CentOS
+    dnf:
+      update_cache: yes
+    changed_when: false
+    when: ansible_distribution == "CentOS"
+
+  - name: Update repository index for Ubuntu
+    tags: always
+    apt:
+      upgrade: dist
+      update_cache: yes
+    changed_when: false
+    when: ansible_distribution == "Ubuntu"
+
+- hosts: all
+  become: true
+  tasks:
+
+  - name: Installation of Docker in Ubuntu
+    apt:
+      name: docker.io
+      state: latest
+    when: ansible_distribution == "Ubuntu"
+
+  - name: Installation of Docker sdk for Ubuntu
+    apt:
+      name: python3-docker
+      update_cache: yes
+      cache_valid_time: 3600
+    when: ansible_distribution == "Ubuntu"
+
+  - name: Docker permissions for Ubuntu
+    shell: 'sudo usermod -aG docker $USER'
+    when: ansible_distribution == "Ubuntu"
+
+  - name: Installation of Docker in CentOS
+    shell: 'curl -fsSL https://get.docker.com/ | sh'
+    when: ansible_distribution == "CentOS"
+
+  - name: Installation of Docker sdk for CentOS
+    yum:
+      name: python-docker-py
+      update_cache: yes
+    when: ansible_distribution == "CentOS"
+
+  - name: Docker permissions for CentOS
+    shell: 'sudo usermod -aG docker $(whoami)'
+    when: ansible_distribution == "CentOS"
+
+  - name: Enabling and Starting of Docker
+    service:
+      name: docker
+      state: started
+
+  - name: copy of dockerfile
+    copy: src=dockerfile dest=/tmp/path/
+
+  - name: docker build
+    docker_image:
+      name: containeransible
+      build:
+        path: /tmp/path/
+        args:
+          listen_port: 8080
+      source: build
+
+  - name: MOTD
+    copy:
+      content: "Ansible Managed by Temporado"
+      dest: /etc/motd
